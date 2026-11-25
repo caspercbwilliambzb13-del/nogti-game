@@ -9,18 +9,47 @@ const colors=['#a72e4b','#cc775d','#8671a1','#567764'],names=['Вишня','Ко
 const bx=[52,137,223,308],neckY=66;
 const paper='#f4eee8';
 function surface(w,h){const c=document.createElement('canvas');c.width=w;c.height=h;return c}
-const scene=surface(W,H),bg=scene.getContext('2d');
+const scene=surface(W*2,H*2),bg=scene.getContext('2d');
 const maskScale=.5,MW=W*maskScale,MH=H*maskScale,paint=surface(MW,MH),ink=paint.getContext('2d');
 let phase='dip',selected=-1,target=-1,done=[],used=[],left=false,tip={x:108,y:167},active=null,grab=null,raf=0,pose,mask,skinMask,pixels,covered,total,coverage=0,notice='';
-const messages={dip:['Наберите лак','Зажмите крестик и подведите кончик кисточки к горлышку любого свободного флакона.'],wipe:['Снимите каплю','Приподнимите кисточку и коснитесь бокового края горлышка, чтобы снять каплю.'],choose:['Выберите ноготь','Подведите кисточку к любому свободному ногтю. Он увеличится для покраски.'],paint:['Покрасьте ноготь','Ведите крестик плавно. Закройте светлые участки лаком и берегите кожу.'],choice:['Два ногтя готовы','Можно забрать 5% или продолжить игру.'],lost:['Лак попал на кожу','Попробуйте ещё раз.'],reward:['Маникюр готов','Попробуйте другие сочетания оттенков.']};
+const messages={dip:['Наберите лак','Зажмите крестик и поднимите кисточку над отверстием флакона и опустите ворс внутрь.'],wipe:['Снимите каплю','Приподнимите кисточку и коснитесь бокового края горлышка, чтобы снять каплю.'],choose:['Выберите ноготь','Подведите кисточку к любому свободному ногтю. Он увеличится для покраски.'],paint:['Покрасьте ноготь','Лёгкое касание даёт тонкий мазок. Нажмите сильнее или задержитесь на месте для широкого.'],choice:['Два ногтя готовы','Можно забрать 5% или продолжить игру.'],lost:['Лак попал на кожу','Попробуйте ещё раз.'],reward:['Маникюр готов','Попробуйте другие сочетания оттенков.']};
 function sync(){el('count').textContent=done.filter(v=>v!=null).length+' из 4';el('step').textContent=messages[phase][0];el('hint').textContent=notice||messages[phase][1];el('percent').textContent=phase==='paint'?Math.floor(coverage*100)+'%':''}
 function cross(){const scale=W/cvs.getBoundingClientRect().width;return {x:tip.x+(left?-1:1)*38*scale,y:tip.y+15*scale}}
 function requestDraw(){if(!raf)raf=requestAnimationFrame(()=>{raf=0;draw()})}
 function grad(c,x,y,x2,y2,stops){const g=c.createLinearGradient(x,y,x2,y2);stops.forEach(([p,color])=>g.addColorStop(p,color));return g}
 function ellipse(c,x,y,rx,ry,fill){c.beginPath();c.ellipse(x,y,rx,ry,0,0,Math.PI*2);c.fillStyle=fill;c.fill()}
-function bottle(c,i){const x=bx[i],col=colors[i];c.save();c.translate(x,neckY);if(used.includes(i))c.globalAlpha=.36;
-ellipse(c,3,59,25,3,'#d8cfc6');const b=new Path2D('M -13 9 Q -13 15 -19 17 Q -24 19 -23 27 L -21 51 Q -21 58 -14 59 L 15 59 Q 21 58 21 52 L 23 27 Q 24 19 18 17 Q 13 15 13 9 Z');c.fillStyle=col;c.fill(b);c.fillStyle=grad(c,-23,0,23,0,[[0,'#20141666'],[.16,'#ffffff55'],[.27,'#ffffff08'],[.76,'#ffffff16'],[1,'#261d236e']]);c.fill(b);c.lineWidth=1;c.strokeStyle='#51373455';c.stroke(b);c.fillStyle=col;c.fillRect(-12,0,24,13);for(let y of [4,7,10]){ellipse(c,0,y,13,3,'#6c504e');ellipse(c,0,y-1,13,2.4,col)}ellipse(c,0,0,13.8,4.8,'#e0c8bd');ellipse(c,0,0,11.5,3.5,'#482c30');ellipse(c,0,1.1,8,1.7,col);
-c.fillStyle='#fffcf0';c.textAlign='center';c.font='italic 13px Georgia';c.fillText('solo',0,40);c.globalAlpha=1;c.font='12px system-ui';c.fillStyle='#463d39';c.fillText(names[i],0,78);c.restore()}
+const shadeLabels = [['Bordeaux'], ['Tart', 'Deco'], ['Play', 'Date'], ['Caught in', 'the Rain']];
+function bottle(c,i) {
+  const col=colors[i];
+  c.save();c.translate(bx[i],neckY);if(used.includes(i))c.globalAlpha=.45;
+  const shadow=c.createRadialGradient(3,62,1,3,62,31);
+  shadow.addColorStop(0,'#55443863');shadow.addColorStop(1,'#55443800');
+  c.save();c.translate(0,49);c.scale(1,.22);ellipse(c,3,62,31,31,shadow);c.restore();
+  const body=new Path2D('M-13 8 Q-13 15 -22 18 Q-28 21 -27 29 L-24 55 Q-23 61 -17 62 Q0 65 18 62 Q24 61 25 55 L27 28 Q28 21 21 18 Q14 15 14 8Z');
+  c.fillStyle=col;c.fill(body);
+  c.save();c.clip(body);
+  c.fillStyle=grad(c,-27,0,27,0,[[0,'#3e3035cc'],[.07,'#fff2ddab'],[.13,'#4a303457'],[.23,'#ffffff50'],[.37,'#ffffff08'],[.7,'#10080e0a'],[.86,'#29182580'],[.95,'#fff3df99'],[1,'#4d4142a1']]);c.fillRect(-29,6,58,59);
+  c.fillStyle=grad(c,0,16,0,63,[[0,'#fbedcb88'],[.18,'#ffffff00'],[.76,'#ffffff00'],[.88,'#180c1945'],[1,'#fff4ddaa']]);c.fillRect(-29,6,58,59);
+  c.fillStyle='#fff9ed88';c.fill(new Path2D('M-22 25 Q-20 21 -16 21 L-17 51 Q-18 55 -20 51Z'));
+  c.fillStyle='#fff9edaa';c.fill(new Path2D('M18 24 Q21 23 21 27 L19 49 L17 51Z'));
+  c.restore();c.strokeStyle='#5b4c464c';c.lineWidth=.8;c.stroke(body);
+  c.fillStyle=col;c.fillRect(-15,-1,30,14);
+  c.fillStyle=grad(c,-15,0,15,0,[[0,'#33212599'],[.18,'#f7e2cbab'],[.41,'#fff0de11'],[.78,'#32203077'],[1,'#ebdac2aa']]);c.fillRect(-15,-1,30,14);
+  for(const y of [4,8,12]) {
+    c.beginPath();c.ellipse(0,y,15,4,-.045,0,Math.PI);c.strokeStyle='#49303599';c.lineWidth=1.8;c.stroke();
+    c.translate(0,-1);c.strokeStyle='#fbe0c494';c.lineWidth=.8;c.stroke();c.translate(0,1);
+  }
+  ellipse(c,0,0,16.5,8,'#b5a49b');ellipse(c,0,-1,15.8,7.3,'#e6d5c8');
+  const well=grad(c,0,-7,0,6,[[0,'#1a151a'],[.48,'#392932'],[.8,col],[1,'#462e38']]);
+  ellipse(c,0,-.5,13.6,5.8,well);
+  c.beginPath();c.ellipse(-.5,-.1,14.7,6.4,0,.14,2.77);c.strokeStyle='#ffefdb';c.lineWidth=1.4;c.stroke();
+  c.fillStyle='#fcfaf7';c.beginPath();c.roundRect(-23,26,46,27,2);c.fill();
+  c.fillStyle='#17191c';c.textAlign='center';c.font='bold 11px Georgia';
+  const lines=shadeLabels[i];
+  lines.forEach((line,row)=>c.fillText(line,0,lines.length===1?43:37+row*11));
+  c.globalAlpha=1;c.font='12px system-ui';c.fillStyle='#463d39';c.fillText(names[i],0,82);c.restore();
+}
+
 // Paths are traced in the photograph's native 1254 × 1254 coordinate system.
 const nails=[
  [404,170,'M398 97 C384 98 374 135 373 161 C372 183 376 220 381 231 C391 249 424 247 439 231 C447 221 442 178 438 155 C434 131 417 96 398 97Z'],
@@ -29,33 +58,235 @@ const nails=[
  [1027,391,'M1046 326 C1033 327 1015 354 1009 370 C1000 392 991 418 993 435 C995 451 1024 461 1036 447 C1045 433 1054 401 1058 379 C1065 348 1059 324 1046 326Z']
 ].map(([x,y,path])=>({x,y,path:new Path2D(path)}));
 const handPath=new Path2D('M85 582 Q92 566 144 604 Q188 594 240 653 Q279 691 326 808 L385 903 Q408 856 405 682 L365 392 Q344 244 357 189 Q359 173 374 154 Q406 114 443 155 Q456 169 461 213 L501 471 Q523 622 533 631 L563 641 Q569 626 563 572 Q539 344 551 151 Q551 92 575 68 Q606 40 642 70 Q661 86 661 132 L664 279 Q671 487 695 631 L709 635 Q714 560 737 418 L782 219 Q792 170 815 156 Q841 125 875 169 Q893 195 878 251 L830 582 Q811 706 832 730 Q852 735 864 704 L947 467 Q972 395 994 375 Q1007 361 1017 360 Q1047 347 1059 385 Q1067 408 1052 455 L982 687 Q930 881 888 1048 L850 1254 L419 1254 Q356 1159 314 1093 Q266 1046 239 966 L151 734 Q79 635 85 582Z');
-const overview={s:W/1254,x:0,y:167};
+const overview={s:.35,x:-58,y:197};
 function mapPoint(p,t){return {x:p.x*t.s+t.x,y:p.y*t.s+t.y}}
 function stageTransform(c,t){c.translate(t.x,t.y);c.scale(t.s,t.s)}
-function varnish(c,i,color){c.save();c.clip(nails[i].path);c.globalAlpha=.87;c.fillStyle=color;c.fill(nails[i].path);c.globalAlpha=.6;const x=nails[i].x;c.fillStyle=grad(c,x-38,0,x+35,0,[[0,'#39212b66'],[.27,'#ffffff22'],[.34,'#ffffffaa'],[.41,'#ffffff33'],[.73,'#ffffff00'],[1,'#39212b66']]);c.fill(nails[i].path);c.restore()}
-function rebuild(){const zoom=phase==='paint'||phase==='lost'&&target>=0;const t=zoom?pose:overview;bg.save();bg.fillStyle=paper;bg.fillRect(0,0,W,H);if(photo.naturalWidth){bg.save();stageTransform(bg,t);if(zoom&&t.y>0)bg.drawImage(photo,0,0,1254,1,0,-t.y/t.s,1254,t.y/t.s+1);bg.drawImage(photo,0,0,1254,1254);done.forEach((color,i)=>{if(color!=null)varnish(bg,i,colors[color])});bg.restore()}
-if(!zoom){bg.fillStyle=grad(bg,0,165,0,187,[[0,paper],[1,'#f4eee800']]);bg.fillRect(0,165,W,22);for(let i=0;i<4;i++)bottle(bg,i)}bg.restore();sync();requestDraw()}
-function brush(c){const s=left?-1:1;const cr=cross();c.save();c.strokeStyle='#5d2a1a88';c.setLineDash([2,3]);c.beginPath();c.moveTo(tip.x+s*7,tip.y+1);c.lineTo(cr.x,cr.y);c.stroke();c.setLineDash([]);if(phase==='paint'){c.beginPath();c.arc(tip.x,tip.y,9.5,0,Math.PI*2);c.lineWidth=1;c.strokeStyle='#493c36a6';c.stroke()}c.translate(tip.x,tip.y);c.scale(s,1);c.rotate(-.49);const metal=grad(c,-7,0,7,0,[[0,'#514139'],[.13,'#d4b195'],[.36,'#fff2d4'],[.6,'#b7977e'],[1,'#41332e']]);c.fillStyle=metal;c.beginPath();c.roundRect(-7,-60,14,31,3);c.fill();c.fillStyle='#b99c8a';c.fillRect(-2,-29,4,18);c.fillStyle=selected<0?'#5f473f':colors[selected];c.fill(new Path2D('M-2 -13 Q-4 -10 -5 -2 Q0 2 5 -2 Q4 -10 2 -13 Z'));c.restore();if(phase==='wipe'){c.save();c.translate(tip.x,tip.y+1);c.fillStyle=colors[selected];const drop=new Path2D('M0 -2 C-1 3 -6 7 -6 11 C-6 19 6 19 6 11 C6 7 1 3 0 -2Z');c.strokeStyle='#fff0e3';c.lineWidth=1.5;c.stroke(drop);c.fill(drop);ellipse(c,-2,11,1.5,2.5,'#fff9');c.restore()}
-ellipse(c,cr.x,cr.y,11.8,11.8,'#fff9f2');c.strokeStyle='#5d2a1a';c.lineWidth=1.5;c.stroke();c.beginPath();c.moveTo(cr.x-5,cr.y);c.lineTo(cr.x+5,cr.y);c.moveTo(cr.x,cr.y-5);c.lineTo(cr.x,cr.y+5);c.stroke()}
-function draw(){const d=Math.min(2,window.devicePixelRatio||1);const width=Math.round(cvs.clientWidth*d),height=Math.round(width*H/W);if(cvs.width!==width||cvs.height!==height){cvs.width=width;cvs.height=height}ctx.setTransform(width/W,0,0,height/H,0,0);ctx.drawImage(scene,0,0,W,H);if((phase==='paint'||phase==='lost')&&target>=0)ctx.drawImage(paint,0,0,W,H);if(['dip','wipe','choose','paint','lost'].includes(phase))brush(ctx)}
+// Tint the photographic nail while preserving its ridges and the curvature of the plate.
+const coats = new Map();
+function lacquer(i, color) {
+  const key = i + color;
+  if (coats.has(key)) return coats.get(key);
+  const n = nails[i], x = n.x - 62, y = n.y - 91, w = 124, h = 186;
+  const tile = surface(w, h), c = tile.getContext('2d');
+  c.drawImage(photo, x, y, w, h, 0, 0, w, h);
+  const frame = c.getImageData(0, 0, w, h), bytes = frame.data;
+  const rgb = [1, 3, 5].map(p => parseInt(color.slice(p,p+2),16));
+  const tilt = [.07,.02,-.18,-.32][i];
+  for (let v = 0; v < h; v++) {
+    const along = (v - 91) / (i===3 ? 68 : 80);
+    const half = (i===3 ? 26 : 35) * Math.sqrt(Math.max(.16,1-.50*along*along));
+    for (let u = 0; u < w; u++) {
+      const k = (v*w+u)*4;
+      const across = (u-62-tilt*(v-91))/half;
+      const lum = (.30*bytes[k]+.59*bytes[k+1]+.11*bytes[k+2])/255;
+      const curve = Math.max(0,1-across*across);
+      const tone = .41+.44*lum+.37*curve;
+      const line = across+.43-.055*Math.cos(along*2.8);
+      const softbox = Math.exp(-line*line/.043-along*along/.59);
+      const glint = Math.exp(-line*line/.006-((along+.23)**2)/.26);
+      const rim = Math.exp(-((across-.76)**2)/.012-((along-.24)**2)/.26);
+      const shine = .32*softbox+.45*glint+.16*rim;
+      for (let ch=0; ch<3; ch++) {
+        const base = Math.min(253, rgb[ch]*tone+(lum-.7)*13);
+        bytes[k+ch] = base+(255-base)*shine;
+      }
+    }
+  }
+  c.putImageData(frame,0,0);
+  const coat={tile,x,y}; coats.set(key,coat); return coat;
+}
+function varnish(c,i,color) {
+  const coat=lacquer(i,color);
+  c.save();c.clip(nails[i].path);c.drawImage(coat.tile,coat.x,coat.y);c.restore();
+}
+function nailEdge(c,i,scale) {
+  c.save();
+  // Stroke outside the playable mask so the inner edge remains the exact paint limit.
+  const outside=new Path2D();
+  outside.rect(-1254,-1254,3762,3762);outside.addPath(nails[i].path);
+  c.clip(outside,'evenodd');
+  c.lineJoin='round';c.strokeStyle='#171717';
+  c.lineWidth=2*(scale<1?1.35:2.5)/scale;c.stroke(nails[i].path);
+  c.restore();
+}
+
+function rebuild(){const zoom=phase==='paint'||phase==='lost'&&target>=0;const t=zoom?pose:overview;bg.save();bg.scale(2,2);bg.fillStyle=paper;bg.fillRect(0,0,W,H);if(photo.naturalWidth){bg.save();stageTransform(bg,t);if(zoom&&t.y>0)bg.drawImage(photo,0,0,1254,1,0,-t.y/t.s,1254,t.y/t.s+1);bg.drawImage(photo,0,0,1254,1254);if(zoom)nailEdge(bg,target,t.s);else nails.forEach((_,i)=>nailEdge(bg,i,t.s));done.forEach((color,i)=>{if(color!=null)varnish(bg,i,colors[color])});bg.restore()}
+if(!zoom){bg.fillStyle=grad(bg,0,overview.y,0,overview.y+8,[[0,paper],[1,'#f4eee800']]);bg.fillRect(0,overview.y,W,8);for(let i=0;i<4;i++)bottle(bg,i)}bg.restore();sync();requestDraw()}
+function brush(c) {
+  const sign=left?-1:1,cr=cross(),painting=phase==='paint'||phase==='lost'&&target>=0;
+  const k=Math.floor(tip.y*maskScale)*MW+Math.floor(tip.x*maskScale);
+  const touches=painting&&active!==null&&mask?.[k*4+3]>=128;
+  const press=touches?load:0, width=touches?1.8+press*9.2:3.3;
+  const bend=touches?Math.min(1,Math.max(-1,motion.x*.28))*-4.5:0;
+  const pigment=selected<0?'#684e42':colors[selected];
+  c.save();c.strokeStyle='#714a3688';c.setLineDash([1.6,3.2]);c.beginPath();
+  c.moveTo(tip.x+sign*(width+2),tip.y);c.lineTo(cr.x,cr.y);c.stroke();c.restore();
+  c.save();c.translate(tip.x,tip.y);c.scale(sign,1);
+  const topX=-10+bend*sign, rise=press*5;
+  c.save();c.translate(topX,-24+rise);c.rotate(-.43);
+  c.fillStyle=grad(c,-8,0,8,0,[[0,'#584840'],[.1,'#a88d75'],[.26,'#f1d8b7'],[.42,'#fff3da'],[.56,'#d8b89a'],[.84,'#a48872'],[1,'#58473e']]);
+  c.beginPath();c.roundRect(-8,-47,16,37,3.5);c.fill();
+  c.fillStyle=grad(c,-2,0,2.5,0,[[0,'#90796a'],[.55,'#f8e7d6'],[1,'#9e887a']]);c.fillRect(-2,-10,4.4,15);c.restore();
+  const rootX=topX+2, rootY=-19+rise;
+  c.beginPath();c.moveTo(rootX-2.5,rootY);
+  c.bezierCurveTo(rootX-4,rootY+9,-width-3,-2-press*1.6,-width,0);
+  c.quadraticCurveTo(0,2.5+press*2,width,.2);
+  c.bezierCurveTo(width+1,-3,rootX+4,rootY+8,rootX+2.5,rootY);c.closePath();
+  c.fillStyle=pigment;c.fill();c.save();c.clip();
+  for(let h=0;h<11;h++){
+    const f=h/10;
+    c.beginPath();c.moveTo(rootX+(f-.5)*5,rootY);
+    c.bezierCurveTo(rootX+(f-.5)*7,rootY+7,(2*f-1)*width-2,-3,(2*f-1)*width,2);
+    c.strokeStyle=h%3===0?'#ffeadd7a':'#2a182b50';c.lineWidth=h%3===0?.65:.5;c.stroke();
+  }
+  c.restore();c.restore();
+  if(phase==='wipe') {
+    c.save();c.translate(tip.x,tip.y);
+    c.fillStyle=pigment;const drop=new Path2D('M-1 -1 C1 5 -5.8 8 -5.4 12 C-5 19 6.8 18 5.9 11 C5.5 7 2 4 2 -1Z');c.fill(drop);
+    c.strokeStyle='#54233570';c.lineWidth=.65;c.stroke(drop);ellipse(c,-2,11,1.3,2.5,'#fff9ecdc');ellipse(c,2,14,.8,.7,'#ffd5c0ac');c.restore();
+  }
+  // Composite the front glass over the immersed bristles and pendant drop.
+  if(!painting){
+    const i=bx.findIndex(v=>Math.abs(tip.x-v)<=17);
+    if(i>=0&&tip.y>=neckY-16&&tip.y<neckY+19) {
+      c.save();c.translate(bx[i],neckY);
+      const front=new Path2D('M-16 0 C-15 10 15 10 16 0 L16 12 Q25 18 27 23 L28 40 L-28 40 L-27 23 Q-24 16 -16 12Z');
+      c.clip(front);c.translate(-bx[i],-neckY);c.drawImage(scene,0,0,W,H);c.restore();
+    }
+  }
+  ellipse(c,cr.x,cr.y,11.8,11.8,'#fff9f2');c.strokeStyle='#5d2a1a';c.lineWidth=1.5;c.stroke();
+  c.beginPath();c.moveTo(cr.x-5,cr.y);c.lineTo(cr.x+5,cr.y);c.moveTo(cr.x,cr.y-5);c.lineTo(cr.x,cr.y+5);c.stroke();
+}
+
+function draw() {
+  const now=performance.now();
+  updateLoad(now);
+  if(phase==='paint' && active!==null && pausedAt && now-pausedAt>=320 && load<1 && realPressure===null)dab(tip.x,tip.y);
+  settle(now);
+  const d=Math.min(2,window.devicePixelRatio||1);
+  const width=Math.round(cvs.clientWidth*d),height=Math.round(width*H/W);
+  if(cvs.width!==width||cvs.height!==height){cvs.width=width;cvs.height=height}
+  ctx.setTransform(width/W,0,0,height/H,0,0);ctx.drawImage(scene,0,0,W,H);
+  if((phase==='paint'||phase==='lost')&&target>=0)drawCoat(ctx,now);
+  if(['dip','wipe','choose','paint','lost'].includes(phase))brush(ctx);
+  if(phase==='paint'&&(flow.length||fresh.length||(active!==null&&load<1&&realPressure===null)))requestDraw();
+}
 function raster(path,t){const c=surface(MW,MH).getContext('2d',{willReadFrequently:true});c.scale(maskScale,maskScale);stageTransform(c,t);c.fill(path);return c.getImageData(0,0,MW,MH).data}
-function startNail(i){target=i;const n=nails[i],s=i===3?1.68:1.48;pose={s,x:W/2-n.x*s,y:228-n.y*s};mask=raster(n.path,pose);skinMask=raster(handPath,pose);pixels=new Uint8Array(MW*MH);covered=0;total=0;coverage=0;for(let k=0;k<pixels.length;k++)if(mask[k*4+3]>=128)total++;ink.clearRect(0,0,MW,MH);phase='paint';notice='Возьмитесь за крестик ещё раз и начните со свободного края ногтя.';tip={x:W/2,y:68};release();rebuild()}
+function startNail(i){target=i;const n=nails[i],s=i===3?1.68:1.48;pose={s,x:W/2-n.x*s,y:228-n.y*s};mask=raster(n.path,pose);skinMask=raster(handPath,pose);pixels=new Uint8Array(MW*MH);covered=0;total=0;coverage=0;for(let k=0;k<pixels.length;k++)if(mask[k*4+3]>=128)total++;ink.clearRect(0,0,MW,MH);prepareFilm();phase='paint';notice='Начните с кончика ногтя. Для широкого мазка задержите палец. Отпустите и возьмитесь снова для тонкого.';tip={x:W/2,y:68};release();rebuild()}
 function alertBox(title,html,buttons){release();if(dialog.open)dialog.close();el('title').textContent=title;el('message').innerHTML=html;el('actions').replaceChildren();buttons.forEach(([label,fn],i)=>{const b=document.createElement('button');b.textContent=label;b.className='pill'+(i?' secondary':'');b.onclick=()=>{dialog.close();fn()};el('actions').append(b)});dialog.showModal()}
 function reset(){done=[];used=[];nextColor()}
-function nextColor(){phase='dip';selected=target=-1;tip={x:108,y:167};notice='';rebuild()}
+function nextColor(){phase='dip';selected=target=-1;rimContact=false;mouth=-1;tip={x:108,y:167};notice='';rebuild()}
 function payout(n){phase='reward';notice='Результат этой игры — скидка '+n+'%.';rebuild();alertBox('Вы выиграли '+n+'%','<p>Готово ногтей — '+used.length+' из 4. В этой пробной версии результат виден только в игре.</p>',[['Сыграть ещё',reset]])}
 function finishNail(){done[target]=selected;used.push(selected);target=-1;selected=-1;notice='';release();if(used.length===4){payout(10);return}if(used.length===2){phase='choice';rebuild();alertBox('У вас уже 5%','<p>Заберите скидку сейчас или покрасьте ещё два ногтя разными цветами. Если лак попадёт на кожу, попытка закончится без скидки.</p>',[['Забрать 5%',()=>payout(5)],['Играть за 10%',nextColor]]);return}nextColor()}
 function lose(){phase='lost';notice='';rebuild();alertBox('Лак попал на кожу','<p>Попытка закончилась без скидки. В новой игре ведите кончик кисточки вдоль контура ногтя.</p>',[['Попробовать ещё',reset]])}
-function dab(x,y){const r=5.1,cx=x*maskScale,cy=y*maskScale;let painted=false;const col=colors[selected];ink.fillStyle=col;for(let j=Math.max(0,Math.floor(cy-r));j<=Math.min(MH-1,Math.ceil(cy+r));j++){for(let i=Math.max(0,Math.floor(cx-r));i<=Math.min(MW-1,Math.ceil(cx+r));i++){const dist=(i+.5-cx)**2+(j+.5-cy)**2;if(dist>r*r)continue;const k=j*MW+i,a=k*4+3;if(mask[a]>=128){if(!pixels[k]){pixels[k]=1;covered++;painted=true;ink.fillRect(i,j,1,1)}}else if(skinMask[a]>180&&dist<(r-1.3)**2){lose();return}}}if(painted){coverage=covered/total;el('percent').textContent=Math.floor(coverage*100)+'%';if(coverage>=.98)finishNail()}}
-function travel(x,y){const ox=tip.x,oy=tip.y,dx=x-ox,dy=y-oy,steps=Math.max(1,Math.ceil(Math.hypot(dx,dy)/2));for(let q=1;q<=steps;q++){tip={x:ox+dx*q/steps,y:oy+dy*q/steps};const p=tip;if(phase==='dip'){const i=bx.findIndex((v,i)=>!used.includes(i)&&Math.abs(p.x-v)<12&&Math.abs(p.y-neckY)<7);if(i>=0){selected=i;phase='wipe';notice='';sync();break}}
-else if(phase==='wipe'){const delta=Math.abs(p.x-bx[selected]);if(delta>=12&&delta<=19&&Math.abs(p.y-neckY)<7){phase='choose';notice='';sync();break}if(p.y>=overview.y && bg.isPointInPath(handPath,(p.x-overview.x)/overview.s,(p.y-overview.y)/overview.s) && !nails.some(n=>bg.isPointInPath(n.path,(p.x-overview.x)/overview.s,(p.y-overview.y)/overview.s))){lose();return}if(p.y>145&&!notice){notice='На кисточке ещё капля. Вернитесь к горлышку и проведите по его боковому краю.';sync()}}
+const layer = surface(W*2,H*2), film = layer.getContext('2d');
+const shade = surface(W*2,H*2), shader = shade.getContext('2d');
+const shimmer = surface(MW,MH), sheen = shimmer.getContext('2d');
+let flow = [], fresh = [], layerDirty = true, pausedAt = 0, load = .08;
+let realPressure = null, motion = {x:0,y:0}, lastWake = 0, rimContact = false;
+function pressureFrom(e) {
+  if(e.pointerType==='mouse'||e.pressure<=0||e.pressure===.5)return null;
+  return Math.max(0,Math.min(1,(e.pressure-.025)/.82));
+}
+function prepareFilm() {
+  flow=[];fresh=[];layerDirty=true;load=.08;realPressure=null;
+  sheen.clearRect(0,0,MW,MH);shader.setTransform(1,0,0,1,0,0);
+  shader.clearRect(0,0,shade.width,shade.height);
+  shader.save();shader.scale(2,2);stageTransform(shader,pose);varnish(shader,target,colors[selected]);shader.restore();
+}
+function coatArea(x,y,rx,ry,finalEdge) {
+  const cx=x*maskScale, cy=y*maskScale;
+  rx*=maskScale;ry*=maskScale;
+  for(let j=Math.max(0,Math.floor(cy-ry));j<Math.min(MH,Math.ceil(cy+ry));j++) {
+    for(let i=Math.max(0,Math.floor(cx-rx));i<Math.min(MW,Math.ceil(cx+rx));i++) {
+      const d=((i+.5-cx)/rx)**2+((j+.5-cy)/ry)**2;
+      if(d>1)continue;
+      const k=j*MW+i,a=k*4+3;
+      if(mask[a]<128) {
+        if(skinMask[a]>180 && d<.72) {lose();return false}
+        continue;
+      }
+      if(!pixels[k]) {
+        pixels[k]=1;covered++;layerDirty=true;
+        ink.fillStyle='#fff';ink.fillRect(i,j,1,1);
+      }
+    }
+  }
+  return true;
+}
+function dab(x,y) {
+  const now=performance.now();
+  const rx=1.8+load*9.2, ry=1.9+load*4.3;
+  if(!coatArea(x,y,rx,ry,false))return;
+  flow.push({x,y,rx,ry,birth:now,stage:0});
+  const idx=Math.floor(y*maskScale)*MW+Math.floor(x*maskScale);
+  if(mask[idx*4+3]>=128 && now-lastWake>12) {
+    fresh.push({x:x-rx*.38,y,rx,at:now});lastWake=now;
+  }
+  requestDraw();
+}
+function settle(now) {
+  if(phase!=='paint')return;
+  const pending=[];
+  for(const d of flow) {
+    const age=now-d.birth, stage=age>=170?2:age>=70?1:0;
+    if(stage>d.stage) {
+      const spread=(.42+d.rx*.082)*stage/2;
+      if(!coatArea(d.x,d.y,d.rx+spread,d.ry+spread,true)) {flow=[];return}
+      d.stage=stage;
+    }
+    if(stage<2)pending.push(d);
+  }
+  flow=pending;
+  const latest=covered/total;
+  if(latest!==coverage){coverage=latest;el('percent').textContent=Math.floor(coverage*100)+'%'}
+  fresh=fresh.filter(d=>now-d.at<480);
+  if(coverage>=.98 && !pending.length)finishNail();
+}
+function drawCoat(c,now) {
+  if(layerDirty) {
+    film.clearRect(0,0,layer.width,layer.height);film.drawImage(shade,0,0);
+    film.globalCompositeOperation='destination-in';film.drawImage(paint,0,0,layer.width,layer.height);
+    film.globalCompositeOperation='source-over';layerDirty=false;
+  }
+  c.drawImage(layer,0,0,W,H);
+  if(!fresh.length)return;
+  sheen.clearRect(0,0,MW,MH);
+  for(const p of fresh) {
+    const a=Math.max(0,1-(now-p.at)/480)*.135;
+    ellipse(sheen,p.x*maskScale,p.y*maskScale,Math.max(.65,p.rx*.13),1.65,'rgba(255,246,223,'+a+')');
+  }
+  sheen.globalCompositeOperation='destination-in';sheen.drawImage(paint,0,0);sheen.globalCompositeOperation='source-over';
+  c.drawImage(shimmer,0,0,W,H);
+}
+function updateLoad(now) {
+  if(phase!=='paint')return;
+  if(active!==null && realPressure===null && pausedAt && now-pausedAt>=320) {
+    load=Math.min(1,load+.065);
+  } else if(realPressure!==null)load=realPressure;
+}
+
+let mouth=-1;
+function travel(x,y){motion={x:x-tip.x,y:y-tip.y};const ox=tip.x,oy=tip.y,dx=x-ox,dy=y-oy,steps=Math.max(1,Math.ceil(Math.hypot(dx,dy)/2));for(let q=1;q<=steps;q++){tip={x:ox+dx*q/steps,y:oy+dy*q/steps};const p=tip;if(phase==='dip'){
+  const i=bx.findIndex((v,i)=>!used.includes(i)&&Math.abs(p.x-v)<12);
+  if(i<0 || p.y<neckY-27)mouth=-1;
+  if(i>=0 && p.y<neckY-3 && p.y>=neckY-27)mouth=i;
+  if(i>=0 && i===mouth && p.y>=neckY+10 && p.y<neckY+17) {
+    selected=i;phase='wipe';rimContact=false;notice='';sync();break;
+  }
+}
+else if(phase==='wipe'){
+  const delta=Math.abs(p.x-bx[selected]);
+  if(delta<13&&p.y<=neckY-7)rimContact=true;
+  if(rimContact&&delta>=12&&delta<=19&&Math.abs(p.y-neckY)<8){phase='choose';notice='';sync();break}
+  if(p.y>=overview.y && bg.isPointInPath(handPath,(p.x-overview.x)/overview.s,(p.y-overview.y)/overview.s) && !nails.some(n=>bg.isPointInPath(n.path,(p.x-overview.x)/overview.s,(p.y-overview.y)/overview.s))){lose();return}if(p.y>145&&!notice){notice='На кисточке ещё капля. Вернитесь к горлышку и проведите по его боковому краю.';sync()}}
 else if(phase==='choose'){const u=(p.x-overview.x)/overview.s,v=(p.y-overview.y)/overview.s;const nail=nails.findIndex(n=>bg.isPointInPath(n.path,u,v));if(nail>=0){if(done[nail]==null){startNail(nail);return}continue}if(bg.isPointInPath(handPath,u,v)){lose();return}}
 else if(phase==='paint'){dab(p.x,p.y);if(phase!=='paint')return}}requestDraw()}
-function release(){if(active!==null&&cvs.hasPointerCapture(active))cvs.releasePointerCapture(active);active=null;grab=null}
+function release(){if(active!==null&&cvs.hasPointerCapture(active))cvs.releasePointerCapture(active);active=null;grab=null;pausedAt=0;realPressure=null;load=.08;requestDraw()}
 function point(e){const r=cvs.getBoundingClientRect();return {x:(e.clientX-r.left)*W/r.width,y:(e.clientY-r.top)*H/r.height}}
 function moveTip(x,y){const cr=cross(),sx=cr.x-tip.x,sy=cr.y-tip.y;travel(Math.min(W-5-Math.max(0,sx),Math.max(5-Math.min(0,sx),x)),Math.min(H-6-sy,Math.max(5,y)))}
-cvs.onpointerdown=e=>{if(dialog.open||active!==null||!['dip','wipe','choose','paint'].includes(phase))return;const p=point(e),cr=cross();if(Math.hypot(p.x-cr.x,p.y-cr.y)*cvs.clientWidth/W>22){notice='Поставьте палец на круглый крестик рядом с кисточкой.';sync();return}active=e.pointerId;grab={x:p.x-tip.x,y:p.y-tip.y};cvs.setPointerCapture(active);notice='';sync();e.preventDefault()};
-cvs.onpointermove=e=>{if(active===e.pointerId&&grab)moveTip(point(e).x-grab.x,point(e).y-grab.y)};cvs.onpointerup=cvs.onpointercancel=cvs.onlostpointercapture=e=>{if(active===e.pointerId)release()};
-cvs.onkeydown=e=>{const dir={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0]}[e.key];if(dir&&!dialog.open&&['dip','wipe','choose','paint'].includes(phase)){e.preventDefault();const step=e.shiftKey?2:6;moveTip(tip.x+dir[0]*step,tip.y+dir[1]*step)}};
-el('side').onclick=()=>{release();left=!left;el('side').setAttribute('aria-pressed',String(left));el('side').textContent=left?'Для правши':'Для левши';requestDraw()};el('help').onclick=()=>alertBox('Как играть','<ul><li>Удерживайте крестик в стороне от кисточки. Подведите ворс к горлышку, затем сотрите каплю о край.</li><li>Подведите кисть к свободному ногтю со стороны его кончика. На увеличенном ногте снова возьмитесь за крестик и закрасьте всю поверхность.</li><li>Лак на коже заканчивает попытку. После двух цветов можно забрать 5%, после четырёх — 10%.</li></ul><p>С клавиатуры используйте стрелки. Shift уменьшает шаг.</p>',[['Понятно',()=>cvs.focus()]]);dialog.oncancel=e=>{if(['choice','lost','reward'].includes(phase))e.preventDefault()};window.addEventListener('blur',release);window.addEventListener('resize',()=>{release();requestDraw()});photo.onload=rebuild;reset();
+cvs.onpointerdown=e=>{if(dialog.open||active!==null||!['dip','wipe','choose','paint'].includes(phase))return;const p=point(e),cr=cross();if(Math.hypot(p.x-cr.x,p.y-cr.y)*cvs.clientWidth/W>22){notice='Поставьте палец на круглый крестик рядом с кисточкой.';sync();return}active=e.pointerId;pausedAt=performance.now();load=.08;realPressure=pressureFrom(e);requestDraw();grab={x:p.x-tip.x,y:p.y-tip.y};cvs.setPointerCapture(active);notice='';sync();e.preventDefault()};
+cvs.onpointermove=e=>{if(active===e.pointerId&&grab){const p=point(e);if(Math.hypot(p.x-grab.x-tip.x,p.y-grab.y-tip.y)>.7)pausedAt=performance.now();realPressure=pressureFrom(e);if(realPressure!==null)load=realPressure;moveTip(p.x-grab.x,p.y-grab.y)}};cvs.onpointerup=cvs.onpointercancel=cvs.onlostpointercapture=e=>{if(active===e.pointerId)release()};
+cvs.onkeydown=e=>{const dir={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0]}[e.key];if(dir&&!dialog.open&&['dip','wipe','choose','paint'].includes(phase)){e.preventDefault();const step=e.shiftKey?2:6;load=e.shiftKey?.12:.75;moveTip(tip.x+dir[0]*step,tip.y+dir[1]*step)}};
+el('side').onclick=()=>{release();left=!left;el('side').setAttribute('aria-pressed',String(left));el('side').textContent=left?'Для правши':'Для левши';requestDraw()};el('help').onclick=()=>alertBox('Как играть','<ul><li>Удерживайте крестик в стороне от кисточки. Заведите ворс сверху в горлышко. Приподнимите кисточку и проведите каплей по боковому краю.</li><li>Подведите кисть к свободному ногтю со стороны его кончика. На увеличенном ногте снова возьмитесь за крестик и закрасьте поверхность. Удержание на месте расширяет мазок. Чтобы снова рисовать кончиком, отпустите крестик и возьмитесь за него заново.</li><li>Лак на коже заканчивает попытку. После двух цветов можно забрать 5%, после четырёх — 10%.</li></ul><p>С клавиатуры используйте стрелки. Shift уменьшает шаг.</p>',[['Понятно',()=>cvs.focus()]]);dialog.oncancel=e=>{if(['choice','lost','reward'].includes(phase))e.preventDefault()};window.addEventListener('blur',release);window.addEventListener('resize',()=>{release();requestDraw()});photo.onload=rebuild;reset();
 </script></body></html>
